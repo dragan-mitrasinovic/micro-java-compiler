@@ -1,7 +1,7 @@
 package rs.ac.bg.etf.pp1;
 
 public class sym {
-	
+
 	// Keywords
 	public static final int PROGRAM = 1;
 	public static final int BREAK = 2;
@@ -27,7 +27,7 @@ public class sym {
 	public static final int NUM_CONST = 20;
 	public static final int CHAR_CONST = 21;
 	public static final int BOOL_CONST = 22;
-	
+
 	// Operators
 	public static final int PLUS = 23;
 	public static final int MINUS = 24;
@@ -56,7 +56,7 @@ public class sym {
 	public static final int LEFT_BRACES = 47;
 	public static final int RIGHT_BRACES = 48;
 	public static final int ARROW = 49;
-	
+
 	// End of file
 	public static final int EOF = 50;
 
