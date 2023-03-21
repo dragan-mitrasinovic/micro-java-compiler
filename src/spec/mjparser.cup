@@ -1,0 +1,271 @@
+package rs.ac.bg.etf.pp1;
+
+import java_cup.runtime.*;
+import org.apache.log4j.*;
+import rs.ac.bg.etf.pp1.ast.*;
+
+parser code {:
+
+  boolean errorDetected;
+
+	Logger log = Logger.getLogger(getClass());
+     
+    public void report_fatal_error(String message, Object info) throws java.lang.Exception {
+      done_parsing();
+      report_error(message, info);
+    }
+  
+    public void syntax_error(Symbol cur_token) {
+        report_error("\nSyntax error", cur_token);
+    }
+  
+    public void unrecovered_syntax_error(Symbol cur_token) throws java.lang.Exception {
+        report_fatal_error("Fatal error, parsing aborted", cur_token);
+    }
+
+    public void report_error(String message, Object info) {
+      errorDetected = true;
+    	StringBuilder msg = new StringBuilder(message); 
+    	if (info instanceof Symbol)
+            msg.append (" at line ").append(((Symbol)info).left);
+        log.error(msg.toString());
+    }
+:}
+
+init with {:
+	errorDetected = false;
+:}
+
+scan with {:
+	Symbol s = this.getScanner().next_token();
+	if (s != null && s.value != null) 
+		log.info(s.toString() + " " + s.value.toString());
+	return s;
+:}
+
+terminal PROGRAM;
+terminal BREAK, CLASS, ENUM, ELSE, CONST, IF, DO, WHILE, NEW, PRINT, READ, RETURN, VOID, EXTENDS, CONTINUE, FOREACH;
+terminal INC, DEC, PLUS, MINUS, MUL, DIV, MOD, EQUAL, NOT_EQUAL, GREATER_EQUAL, GREATER, LESS_EQUAL, LESS, AND, OR, ARROW, ASSIGN;
+terminal SEMICOLON, COLON, COMMA, DOT, LEFT_PARENTHESES, RIGHT_PARENTHESES, LEFT_BRACKETS, RIGHT_BRACKETS, LEFT_BRACES, RIGHT_BRACES;
+terminal String IDENTIFIER;
+terminal Integer NUM_CONST;
+terminal Boolean BOOL_CONST;
+terminal Character CHAR_CONST;
+
+nonterminal DeclList, MethodDeclList;
+nonterminal ConstDecl, VarDecl, ClassDecl;
+nonterminal VarDeclList, Methods;
+nonterminal FormalParams, FormPars;
+nonterminal ConstList, VarList;
+nonterminal StatementList, Statement;
+nonterminal DesignatorStatement;
+nonterminal ArrayAssignmentList;
+nonterminal ActPars, ActualParams;
+nonterminal Condition, CondTerm, CondFact;
+nonterminal Expr, Term, Factor, Designator;
+nonterminal AssignmentStatement;
+
+nonterminal ClassName;
+nonterminal Mulop, Addop, Relop, Assignop;
+nonterminal Label;
+
+nonterminal rs.etf.pp1.symboltable.concepts.Struct Type;
+nonterminal rs.etf.pp1.symboltable.concepts.Obj ProgName, Program;
+nonterminal rs.etf.pp1.symboltable.concepts.Obj MethodDecl, MethodTypeName, VoidMethodName;
+nonterminal rs.etf.pp1.symboltable.concepts.Obj FirstDeclaredArray, FirstDeclaredVariable;
+nonterminal rs.etf.pp1.symboltable.concepts.Obj FirstDeclaredConstant;
+nonterminal Variable, Array, ConstantName;
+
+precedence left ELSE;
+
+//Done
+Program ::= 
+  (Program) PROGRAM ProgName DeclList LEFT_BRACES MethodDeclList RIGHT_BRACES;
+
+//Done
+ProgName ::= 
+  (ProgName) IDENTIFIER:progName;
+
+//Done
+DeclList ::= 
+    (ConstDeclaration) DeclList ConstDecl
+  | (VarDeclaration) DeclList VarDecl
+  | (ClassDeclaration) DeclList ClassDecl
+  | (EmptyDeclList) /* empty */;
+
+// Done
+ClassDecl ::=
+	(ClassDecl) CLASS ClassName LEFT_BRACES VarDeclList Methods RIGHT_BRACES;
+
+//Done
+Methods ::=
+    (MethodDefinitions) LEFT_BRACES MethodDeclList RIGHT_BRACES
+  | (EmptyMethods) /* empty */;
+
+//Done
+VarDeclList ::=
+    (VarDeclarationList) VarDeclList VarDecl
+  | (EmptyVarDeclList) /* empty */;
+
+//Done
+MethodDeclList ::= 
+    (MethodDeclarations) MethodDeclList MethodDecl
+  | (EmptyMethodDeclList) /* empty */;
+
+//Done
+MethodDecl ::=
+    (MethodDeclRet) MethodTypeName LEFT_PARENTHESES FormPars RIGHT_PARENTHESES VarDeclList LEFT_BRACES StatementList RIGHT_BRACES
+  | (MethodDeclVoid) VOID VoidMethodName LEFT_PARENTHESES FormPars RIGHT_PARENTHESES VarDeclList LEFT_BRACES StatementList RIGHT_BRACES;
+
+//Done
+MethodTypeName ::= (MethodTypeName) Type:retType IDENTIFIER:methodName;
+
+//Done
+VoidMethodName ::= (VoidMethodName) IDENTIFIER:methodName;
+
+//Done
+FormPars ::=
+    (FormalParamaters) FormalParams
+  | (EmptyFormalParamList) /* empty */;
+
+//Done
+FormalParams ::= 
+    (SingleFormalParamVar) Type Variable
+  | (SingleFormalParamArr) Type Array
+  | (MultipleFormalParamVar) FormalParams COMMA Type Variable
+  | (MultipleFormalParamArr) FormalParams COMMA Type Array;
+
+//Done
+StatementList ::=
+    (Statements) StatementList Statement
+  | (EmptyStatementList) /* empty */;
+
+Statement ::=
+    (Assignment) AssignmentStatement
+  | (IfStatement) IF LEFT_PARENTHESES Condition RIGHT_PARENTHESES Statement
+  | (IfElseStatement) IF LEFT_PARENTHESES Condition RIGHT_PARENTHESES Statement ELSE Statement
+  | (WhileStatement) WHILE LEFT_PARENTHESES Condition RIGHT_PARENTHESES Statement
+  | (BreakStatement) BREAK SEMICOLON
+  | (ContinueStatement) CONTINUE SEMICOLON
+  | (ReturnStatement) RETURN Expr SEMICOLON
+  | (ReturnVoidStatement) RETURN SEMICOLON
+  | (ReadStatement) READ LEFT_PARENTHESES Designator RIGHT_PARENTHESES SEMICOLON
+  | (PrintStatement) PRINT LEFT_PARENTHESES Expr RIGHT_PARENTHESES SEMICOLON
+  | (PrintMultipleStatement) PRINT LEFT_PARENTHESES Expr COMMA NUM_CONST RIGHT_PARENTHESES SEMICOLON
+  | (NestedStatement) LEFT_BRACES StatementList RIGHT_BRACES;
+
+DesignatorStatement ::=
+   (ValueAssignment) Designator Assignop Expr
+  | (FunctionAssignment) Designator LEFT_PARENTHESES ActPars RIGHT_PARENTHESES
+  | (Postincrement) Designator INC
+  | (Postdecrement) Designator DEC
+  | (ArrayAssignment) LEFT_BRACKETS Designator ArrayAssignmentList RIGHT_BRACKETS ASSIGN Designator
+  | (ArrayAssignmentNoFirst) LEFT_BRACKETS ArrayAssignmentList RIGHT_BRACKETS ASSIGN Designator;
+
+AssignmentStatement ::=
+      (ValidAssignmentStatement) DesignatorStatement SEMICOLON
+    | (ErrorAssignment) error SEMICOLON:l
+      {: parser.report_error("Performed recovery until symbol ; at line " + lleft, null);  :};
+
+ArrayAssignmentList ::=
+    (ArrayAssignmentSkip) ArrayAssignmentList COMMA 
+  | (ArrayAssignmentAdd) ArrayAssignmentList COMMA Designator
+  | (EmptyArrayAssignment) /* empty */;
+
+ActPars ::=
+    (ActualParamaters) ActualParams
+  | (EmptyActualParamList) /* empty */;
+
+ActualParams ::=
+    (SingleActualParam) Expr
+  | (MultipleActualParam) ActualParams COMMA Expr;
+
+Condition ::=
+    (SingleCond) CondTerm
+  | (OrCond) Condition OR CondTerm;
+
+CondTerm ::= 
+    (SingleCondTerm) CondFact
+  | (AndCondTerm) CondTerm AND CondFact;
+
+CondFact ::=
+    (SingleCondFact) Expr
+  | (RelopCondFact) Expr Relop Expr;
+
+Expr ::=
+    (SingleExpression) Term
+  | (SingleNegatedExpression) MINUS Term
+  | (AddExpression) Expr Addop Term;
+
+Term ::=
+    (SingleTerm) Factor
+  | (MulTerm) Term Mulop Factor;
+
+Factor ::=
+    (VariableFactor) Designator
+  | (FunctionFactor) Designator LEFT_PARENTHESES ActPars RIGHT_PARENTHESES
+  | (NumConstFactor) NUM_CONST
+  | (BoolConstFactor) BOOL_CONST
+  | (CharConstFactor) CHAR_CONST
+  | (NewArrayFactor) NEW Type LEFT_BRACKETS Expr RIGHT_BRACKETS 
+  | (NewObjectFactor) NEW Type LEFT_PARENTHESES ActPars RIGHT_PARENTHESES
+  | (ExpressionFactor) LEFT_PARENTHESES Expr RIGHT_PARENTHESES;
+
+Designator ::=
+    (SingleDesignator) IDENTIFIER 
+  | (FieldDesignator) Designator DOT IDENTIFIER
+  | (ArrayElementDesignator) Designator LEFT_BRACKETS Expr RIGHT_BRACKETS;
+
+ConstDecl ::=
+    (ConstDecl) FirstDeclaredConstant ConstList SEMICOLON;
+  
+ConstList ::=
+    (EmptyConstList) /* empty */
+  | (ConstDeclNum) ConstList COMMA ConstantName ASSIGN NUM_CONST
+  | (ConstDeclBool) ConstList COMMA ConstantName ASSIGN BOOL_CONST
+  | (ConstDeclChar) ConstList COMMA ConstantName ASSIGN CHAR_CONST;
+
+FirstDeclaredConstant ::= 
+    (FirstDeclaredConstantNum) CONST Type ConstantName ASSIGN NUM_CONST
+  | (FirstDeclaredConstantBool) CONST Type ConstantName ASSIGN BOOL_CONST
+  | (FirstDeclaredConstantChar) CONST Type ConstantName ASSIGN CHAR_CONST;
+
+ConstantName ::= (ConstantName) IDENTIFIER:constantName;
+  
+//Done
+VarDecl ::=
+    (ErrorVarDeclSemi) error SEMICOLON:l
+      {: parser.report_error("Performed recovery until symbol ; at line " + lleft, null);  :}
+  | (ErrorVarDeclComma) error COMMA:l
+      {: parser.report_error("Performed recovery until symbol , at line " + lleft, null);  :}
+  | (VarDeclV) FirstDeclaredVariable VarList SEMICOLON
+  | (VarDeclA) FirstDeclaredArray VarList SEMICOLON;
+
+//Done
+VarList ::=
+    (ErrorVarListSemi) error SEMICOLON:l
+      {: parser.report_error("Performed recovery until symbol ; at line " + lleft, null);  :}
+  | (ErrorVarListComma) error COMMA:l
+      {: parser.report_error("Performed recovery until symbol , at line " + lleft, null);  :}
+	| (EmptyVarList) /* empty */  
+  | (VarDeclChain) VarList COMMA Variable 
+  | (ArrDeclChain) VarList COMMA Array;
+
+//Done
+FirstDeclaredVariable ::= (FirstDeclaredVariable) Type Variable;
+
+//Done
+FirstDeclaredArray ::= (FirstDeclaredArray) Type Array;
+  
+
+Type ::= (Type) IDENTIFIER:typeName;
+Label ::= (Label) IDENTIFIER;
+ClassName ::= (BaseClass) IDENTIFIER | (SubClass) IDENTIFIER EXTENDS Type;
+Variable ::= (Variable) IDENTIFIER:varName;
+Array ::= (Array) IDENTIFIER:arrName LEFT_BRACKETS RIGHT_BRACKETS;
+
+Mulop ::= MUL | DIV | MOD;
+Addop ::= PLUS | MINUS;
+Relop ::= EQUAL | NOT_EQUAL | GREATER_EQUAL | GREATER | LESS_EQUAL | LESS;
+Assignop ::= ASSIGN;
+
